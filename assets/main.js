@@ -1,4 +1,4 @@
-// STOLBASZ — drobna interaktywność (nav mobile + reveal)
+// KW SPAW - interaktywność (menu, odsłanianie, pasek, podgląd realizacji, warstwa ruchu)
 (function () {
   // mobilne menu
   var toggle = document.querySelector('.nav-toggle');
@@ -53,36 +53,6 @@
   setTimeout(odslonWidoczne, 900);
 })();
 
-// nav kondensuje się po przewinięciu (cienka linia + niższy pasek) — addytywne, lekkie
-(function () {
-  var nav = document.querySelector('.nav') || document.querySelector('header');
-  if (!nav) return;
-  var ticking = false;
-  function upd() { nav.classList.toggle('is-stuck', window.scrollY > 24); ticking = false; }
-  window.addEventListener('scroll', function () {
-    if (!ticking) { ticking = true; requestAnimationFrame(upd); }
-  }, { passive: true });
-  upd();
-})();
-
-// Pasek nawigacji: rezerwa miejsca pod CTA odpiete absolutnie na prawo (K. 05.08.2026).
-// Rezerwa byla STALA (12rem = 192px), a przycisk rosnie razem z numerem telefonu
-// ("Zadzwon +48 730 696 616" = 230px) - wtedy "Kontakt" wchodzil na ramke przycisku.
-// Liczymy ja z realnej szerokosci przycisku, wiec dziala dla kazdej dlugosci numeru i nazwy.
-(function () {
-  var links = document.querySelector('.nav-links');
-  var cta = links && links.querySelector('a.btn-accent');
-  if (!links || !cta) return;
-  function upd() {
-    if (window.innerWidth <= 680) { links.style.paddingRight = ''; return; }  // mobile: CTA jest w flow
-    var w = cta.getBoundingClientRect().width;
-    if (w) links.style.paddingRight = Math.ceil(w + 32) + 'px';
-  }
-  upd();
-  window.addEventListener('resize', upd, { passive: true });
-  window.addEventListener('load', upd);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(upd);  // font zmienia szerokosc
-})();
 
 // LICZNIK WAŻNOŚCI DEMA (K. 09.08: pełne odliczanie dni/godzin/minut/sekund).
 // Element wstrzykuje multipage TYLKO w dema. Nie wita klienta przy wejściu - wjeżdża
@@ -151,49 +121,52 @@
   } catch (e) {}
 })();
 
-/* === rodzina: fachowcy === */
-/* === rodzina FACHOWCY ===
-   TYLKO suwak PRZED/PO (before/after). NAV NIE chowa się (auto-hide) - telefon-CTA ma być ZAWSZE widoczny (decyzja FAZA 3).
-   is-stuck (przezroczysty->cień) obsługuje base.js. */
-(function () {
-  var sliders = document.querySelectorAll('[data-ba]');
-  if (!sliders.length) return;
-  sliders.forEach(function (s) {
-    var dragging = false;
-    function setPos(clientX) {
-      var r = s.getBoundingClientRect();
-      var p = ((clientX - r.left) / r.width) * 100;
-      p = Math.max(3, Math.min(97, p));
-      s.style.setProperty('--ba-pos', p + '%');
-    }
-    function down(e) { dragging = true; setPos(e.touches ? e.touches[0].clientX : e.clientX); }
-    function move(e) { if (dragging) setPos(e.touches ? e.touches[0].clientX : e.clientX); }
-    function up() { dragging = false; }
-    s.addEventListener('pointerdown', down);
-    window.addEventListener('pointermove', move, { passive: true });
-    window.addEventListener('pointerup', up);
-    s.addEventListener('touchstart', down, { passive: true });
-    s.addEventListener('touchmove', move, { passive: true });
-    s.addEventListener('touchend', up);
-  });
-})();
 
-/* === NAV NOBU kontroler (silnik) === */
+/* === PŁYWAJĄCY PASEK (wzór układu: szkło, pojawia się po zjechaniu z nagłówka strony głównej) === */
 (function () {
   var nav = document.querySelector('.nav');
   if (!nav) return;
-  var last = window.scrollY || 0, TOP = 8, TH = 6, ticking = false;
+  var home = document.body.classList.contains('home');
+  var hn = document.querySelector('.hero-nav');
+  var tick = false;
   function upd() {
-    var y = window.scrollY || 0;
-    if (y <= TOP) { nav.classList.remove('nav-hidden', 'nav-solid'); last = y; ticking = false; return; }
-    var d = y - last;
-    if (Math.abs(d) <= TH) { ticking = false; return; }
-    if (d > 0) nav.classList.add('nav-hidden');
-    else { nav.classList.remove('nav-hidden'); nav.classList.add('nav-solid'); }
-    last = y; ticking = false;
+    tick = false;
+    if (!home) { nav.classList.add('fh-show'); return; }
+    var prog = hn ? hn.getBoundingClientRect().bottom : 120;
+    nav.classList.toggle('fh-show', prog < 0);
   }
-  window.addEventListener('scroll', function () { if (!ticking) { ticking = true; window.requestAnimationFrame(upd); } }, { passive: true });
+  window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(upd); } }, { passive: true });
+  window.addEventListener('resize', upd, { passive: true });
   upd();
+})();
+
+/* === PODGLĄD REALIZACJI (miniatury przełączają zdjęcie i opis) === */
+(function () {
+  var v = document.querySelector('[data-viewer]');
+  if (!v) return;
+  var DANE = [
+    { tag: 'Zakres /01', cap: 'Spawanie profili stalowych', job: 'Zakres /01 · Spawanie', a: 'Łączenie i dospawanie elementów stalowych', b: 'W warsztacie albo u klienta', c: 'Element pod wymiar konkretnego miejsca' },
+    { tag: 'Zakres /02', cap: 'Cięcie i obróbka blachy', job: 'Zakres /02 · Obróbka', a: 'Docinanie blach i profili', b: 'W warsztacie', c: 'Element gotowy do spawania i montażu' },
+    { tag: 'Zakres /03', cap: 'Naprawa elementów metalowych', job: 'Zakres /03 · Naprawy', a: 'Pęknięte, ułamane albo zużyte części', b: 'W warsztacie albo na miejscu', c: 'Część wraca do pracy zamiast na złom' }
+  ];
+  var imgs = v.querySelectorAll('.v-stage img');
+  var th = v.querySelectorAll('.v-thumb');
+  var q = function (s) { return v.querySelector(s); };
+  function pokaz(i) {
+    var d = DANE[i]; if (!d) return;
+    imgs.forEach(function (im, k) { im.classList.toggle('on', k === i); });
+    th.forEach(function (t, k) { t.classList.toggle('on', k === i); t.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
+    q('[data-v-tag]').textContent = d.tag;
+    q('[data-v-cap]').textContent = d.cap;
+    q('[data-v-count]').textContent = '0' + (i + 1) + ' / 0' + DANE.length;
+    q('[data-v-job]').textContent = d.job;
+    q('[data-v-a]').textContent = d.a;
+    q('[data-v-b]').textContent = d.b;
+    q('[data-v-c]').textContent = d.c;
+  }
+  th.forEach(function (t) {
+    t.addEventListener('click', function () { pokaz(parseInt(t.getAttribute('data-i'), 10)); });
+  });
 })();
 
 /* === MOTION LAYER v2 (silnik) === */
@@ -233,7 +206,9 @@
   function splitLines(el) {
     if (!el || el.dataset.mtDone) return false;
     var raw = el.innerHTML;
-    var txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    // \s w JS łapie też twardą spację (NBSP) - bierzemy tylko zwykłe białe znaki,
+    // żeby jednoliterowe spójniki nie zostawały na końcu linii
+    var txt = (el.textContent || '').replace(/[ \t\r\n]+/g, ' ').trim();
     // złożony markup (span z akcentem, link, ikona) albo bardzo długi tekst → prostszy wariant
     // 27.07.2026: dopisane em,b,strong,i,mark - hero fachowców ma akcent w H1 jako <em>,
     // a splitLines przepisywał nagłówek z samego textContent i kasował ten znacznik
@@ -784,3 +759,14 @@
 
 /* === licznik otwarć demo (buy-signal) v3 — geo po stronie serwera === */
 (function(){try{if(String(location.protocol).indexOf('http')!==0)return;try{if(/[?&#]team=1/.test(location.search+location.hash)){localStorage.setItem('nb_team','1');}}catch(e){}try{if(localStorage.getItem('nb_team')==='1')return;}catch(e){}if(/crm-newbeginning|crm\.impulseo\.pl/.test(document.referrer||''))return;try{if(navigator.webdriver)return;}catch(e){}try{if(/^https?:\/\/(kris20032|impulseo-pl)\.github\.io\/?$/i.test(document.referrer||''))return;}catch(e){}if(sessionStorage.getItem('_dv'))return;sessionStorage.setItem('_dv','1');var seg=(location.pathname.split('/').filter(Boolean)[0])||'';var base=location.origin+(seg?('/'+seg):'');var ua='';try{ua=(navigator.userAgent||'').slice(0,300);}catch(e){}var EP='https://zngfubfinbojfgaxdrbf.supabase.co/functions/v1/demo-view';try{fetch(EP,{method:'POST',keepalive:true,headers:{'Content-Type':'text/plain'},body:JSON.stringify({demo_url:base,page:location.pathname,referrer:(document.referrer||null),user_agent:(ua||null)})}).catch(function(){});}catch(e){}}catch(e){}})();
+
+/* Stopklatka: nieruchome tło (position:fixed pod clip-path) pokazujemy tylko w pobliżu sekcji */
+(function () {
+  var st = document.querySelectorAll('.stopklatka');
+  if (!st.length || !('IntersectionObserver' in window)) return;
+  document.documentElement.classList.add('stk-js');
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { e.target.classList.toggle('stk-on', e.isIntersecting); });
+  }, { rootMargin: '300px 0px' });
+  st.forEach(function (el) { io.observe(el); });
+})();
